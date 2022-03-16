@@ -1,0 +1,212 @@
+---
+title: "Car Accidents"
+author: "Alex Filo"
+date: "2/9/2022"
+output: html_document
+---
+
+```{r}
+
+library(readr)
+y = read_csv("C:/Users/16307/Downloads/Accidents.csv")
+head(y)
+```
+
+### data cleaning
+```{r}
+length(unique(y$ID)) == nrow(y)
+```
+True means no duplicates
+
+```{r}
+max(y$`Distance(mi)`)
+```
+
+Apparently the length of the road that was affected by the accident is 441 miles long
+
+###
+y = filter(y, `Distance(mi)` < 100)
+
+Got rid of 51 rows that have a disrance affected greater than 100
+
+```{r}
+length = length(y$Severity)
+severity = c(sum(y$Severity == 1) / length,
+sum(y$Severity == 2) / length,
+sum(y$Severity == 3) / length,
+sum(y$Severity == 4) / length)
+one_four <- c(1:4)
+severity_dt <- data.frame(severity, one_four)
+severity_dt
+```
+
+```{r}
+severity_dt %>% ggplot() +
+  geom_col(mapping = aes(x = one_four, y = severity), fill = 'red3') +
+  ggtitle(label = "Distribution of Reported Severity of Crash") +
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+  xlab("Severity Rating") + ylab("Proportion") 
+```
+
+The bulk of accidents are severity 2 or 3
+
+```{r}
+sum(y$Turning_Loop == TRUE)
+
+```
+This variable is just always false
+
+### plot 1
+
+```{r}
+library(ggplot2)
+library(dplyr)
+y1 <- y %>% filter(Severity == 1)
+y2 <- y %>% filter(Severity == 2)
+y3 <- y %>% filter(Severity == 3)
+y4 <- y %>% filter(Severity == 4)
+```
+
+```{r}
+ggplot(color = 'blue') + 
+  geom_density(y, mapping = aes(x = `Temperature(F)`, color = 'blue')) + 
+  
+  ggtitle("Temperature Distribution for all Accidents") +
+  xlab("Temperature(F)") + ylab("Density")
+```
+
+```{r}
+ggplot() + 
+  geom_density(y1, mapping = aes(x = `Temperature(F)`, color = 'blue')) + 
+  geom_density(y4, mapping = aes(x = `Temperature(F)`, color = 'red')) + theme_minimal() +
+  scale_color_manual(
+    values = c("blue", "red"),
+    labels = expression("Severity = 1 (Least Severe)","Severity = 4 (Most Severe)")) +
+  ggtitle("Comparing temperature distributions for 2 different accident severities") +
+  xlab("Temperature(F)") + ylab("Density") + labs(fill = "Severity")
+```
+ geom_density(y2, mapping = aes(x = `Temperature(F)`), color = 'red') + 
+  geom_density(y3, mapping = aes(x = `Temperature(F)`), color = 'green') +
+```{r}
+library(lubridate)
+date_time = as.Date(y$Start_Time, format="%y-%m-%d")
+
+accident_month = month(date_time)
+df_month <- as.data.frame(accident_month)
+head(df_month)
+```
+
+```{r}
+df_month %>% ggplot() +
+  geom_bar(mapping = aes(x = accident_month)) + 
+  labs(title = "accidents by month", x = "month", y = "total number of accidents")
+```
+
+### Zooming in to just 2018 data
+```{r}
+head(y)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+y = y %>% mutate( date = ymd_hms(y$Start_Time))
+```
+
+
+
+
+```{r}
+y_2018 = y %>% filter(year(y$date) == 2018)
+```
+
+```{r}
+head(y_2018$date)
+```
+
+```{r}
+y_2018 = y_2018 %>% mutate(hour = hour(y_2018$date))
+```
+
+
+### we now have a column that gives the hours of each of the accidents for 2018. Next step : ggplot
+
+```{r}
+y_2018 %>% ggplot() + 
+  geom_bar(mapping = aes(x = hour)) + 
+ scale_y_discrete(labels = scales::percent_format()  )
+```  
+### trying to make a new table that just the percentage of total for each of the bars for an hour of the day, so that I can compare with traffic volume
+
+```{r}
+y = y %>% mutate(hour = hour(y$date))
+head(y$hour)
+```
+
+```{r}
+hourly_proportions_2018 = prop.table(table(y_2018$hour))
+hourly_proportions = prop.table(table(y$hour))
+```
+
+```{r}
+df_hour_2018 = data.frame(hourly_proportions_2018)
+df_hour = data.frame(hourly_proportions)
+```
+
+```{r}
+Var1 = c(0:23)
+df_hour %>% ggplot() +
+  geom_col(mapping = aes(x = Var1, y = Freq), fill = 'red') +
+
+ 
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+  xlab("Hour of the Day") + ylab("Proportion of Total Accidents Occuring at this Time")
+```
+
+
+
+### Now I need to get that frequency table just for hourly traffic volume in the US
+
+```{r}
+vector1 <- c(818201953, 532274265, 472872609, 500979703, 836747599, 1752298366, 3094860196, 4165560542, 4123558906, 3999114720, 4149340675, 4415712766, 4642245332, 4737703110, 5005289187, 5353265160, 5548395918, 5402088843, 4407993123, 3422929480, 2789340768, 2338297047, 1809694308, 1284055124)
+
+df1_traffic<- data.frame(vector1, Var1)
+df1_traffic = df1_traffic %>% mutate(freq = vector1 / sum(vector1))
+df1_traffic
+```
+
+```{r}
+df1_traffic %>% ggplot() +
+  geom_col(mapping = aes(x = Var1, y = freq)) +
+
+
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+  xlab("Hour of the Day") + ylab("Proportion of Total Daily Traffic") 
+
+```
+
+```{r}
+traffic_volume <- df1_traffic$freq
+accident <- df_hour$Freq
+Var1 <- df_hour$Var1
+
+df1 <- data.frame(accident, traffic_volume, Var1)
+library(tidyr)
+df2 <- pivot_longer(df1, cols=c('accident', 'traffic_volume'), names_to='variable', 
+values_to="value")
+```
+
+```{r}
+ggplot(df2, aes(x=Var1, y=value, fill=variable)) +
+    geom_bar(stat='identity', position='dodge') + 
+  scale_fill_manual(values = c("red","gray60"), labels = c("Accidents", "Normal Traffic Volume")) +
+  theme_minimal() +
+  xlab("Hour of the Day") + ylab("Proportion") + labs(fill = "Distribution")
+```
+
+```{r}
+ggplot(df2, aes(x=Var1, y=value, fill=variable)) +
+    geom_bar(stat='identity', position='dodge') + 
+  scale_fill_manual(values = c("red","gray60")) 
+```
